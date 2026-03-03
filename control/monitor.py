@@ -45,6 +45,14 @@ def analyze_data():
         city = item['station__location__city__name']
         user = item['station__user__username']
 
+        key = (country, state, city, user)
+        # Guardar valores para evento compuesto
+        if key not in fire_detection:
+            fire_detection[key] = {}
+
+        fire_detection[key][variable] = item["check_value"]
+
+        #  ALERTA NORMAL
         if item["check_value"] > max_value or item["check_value"] < min_value:
             alert = True
 
@@ -54,6 +62,21 @@ def analyze_data():
             print(datetime.now(), "Sending alert to {} {}".format(topic, variable))
             client.publish(topic, message)
             alerts += 1
+
+    #  NUEVO EVENTO: DETECCIÓN DE INCENDIO
+    for key, values in fire_detection.items():
+        country, state, city, user = key
+
+        temp = values.get("temperature")
+        hum = values.get("humidity")
+
+        # Asegurarse de que ambas variables existan
+        if temp is not None and hum is not None:
+            if temp > 35 and hum < 30:
+                topic = '{}/{}/{}/{}/in'.format(country, state, city, user)
+                print(" INCENDIO DETECTADO en", topic)
+                client.publish(topic, "FIRE_ALERT")
+                alerts += 1
 
     print(len(aggregation), "dispositivos revisados")
     print(alerts, "alertas enviadas")
